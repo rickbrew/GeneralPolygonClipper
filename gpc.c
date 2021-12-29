@@ -726,6 +726,110 @@ static void build_intersection_table(it_node **it, edge_node *aet, double dy)
   }
 }
 
+
+static void swap_intersecting_edge_bundles(edge_node **aet, it_node *intersect)
+{
+	edge_node *e0 = intersect->ie[0];
+	edge_node *e1 = intersect->ie[1];
+	edge_node *e0t = e0;
+	edge_node *e1t = e1;
+	edge_node *e0n = e0->next;
+	edge_node *e1n = e1->next;
+
+	// Find the node before the e0 bundle
+	edge_node *e0p = e0->prev;
+	if (e0->bstate[ABOVE] == BUNDLE_HEAD)
+	{
+		do
+		{
+			e0t = e0p;
+			e0p = e0p->prev;
+		}
+		while (e0p && (e0p->bstate[ABOVE] == BUNDLE_TAIL));
+	}
+
+	// Find the node before the e1 bundle
+	edge_node *e1p = e1->prev;
+	if (e1->bstate[ABOVE] == BUNDLE_HEAD)
+	{
+		do
+		{
+			e1t = e1p;
+			e1p = e1p->prev;
+		}
+		while (e1p && (e1p->bstate[ABOVE] == BUNDLE_TAIL));
+	}
+
+	// Swap the e0p and e1p links
+	if (e0p)
+	{
+		if (e1p)
+		{
+			if (e0p != e1)
+			{
+				e0p->next = e1t;
+				e1t->prev = e0p;
+			}
+			if (e1p != e0)
+			{
+				e1p->next = e0t;
+				e0t->prev = e1p;
+			}
+		}
+		else
+		{
+			if (e0p != e1)
+			{
+				e0p->next = e1t;
+				e1t->prev = e0p;
+			}
+			*aet = e0t;
+			e0t->prev = NULL;
+		}
+	}
+	else
+	{
+		if (e1p != e0)
+		{
+			e1p->next = e0t;
+			e0t->prev = e1p;
+		}
+		*aet = e1t;
+		e1t->prev = NULL;
+	}
+
+	// Re-link after e0
+	if (e0p != e1)
+	{
+		e0->next = e1n;
+		if (e1n)
+		{
+			e1n->prev = e0;
+		}
+	}
+	else
+	{
+		e0->next = e1t;
+		e1t->prev = e0;
+	}
+
+	// Re-link after e1
+	if (e1p != e0)
+	{
+		e1->next = e0n;
+		if (e0n)
+		{
+			e0n->prev = e1;
+		}
+	}
+	else
+	{
+		e1->next = e0t;
+		e0t->prev = e1;
+	}
+}
+
+
 static int count_contours(polygon_node *polygon)
 {
   int          nc, nv;
@@ -1031,24 +1135,24 @@ void gpc_read_polygon(FILE *fp, int read_hole_flags, gpc_polygon *p)
 {
   int c, v;
 
-  fscanf(fp, "%d", &(p->num_contours));
+  fscanf_s(fp, "%d", &(p->num_contours));
   MALLOC(p->hole, p->num_contours * sizeof(int),
          "hole flag array creation", int);
   MALLOC(p->contour, p->num_contours
          * sizeof(gpc_vertex_list), "contour creation", gpc_vertex_list);
   for (c= 0; c < p->num_contours; c++)
   {
-    fscanf(fp, "%d", &(p->contour[c].num_vertices));
+    fscanf_s(fp, "%d", &(p->contour[c].num_vertices));
 
     if (read_hole_flags)
-      fscanf(fp, "%d", &(p->hole[c]));
+      fscanf_s(fp, "%d", &(p->hole[c]));
     else
       p->hole[c]= FALSE; /* Assume all contours to be external */
 
     MALLOC(p->contour[c].vertex, p->contour[c].num_vertices
            * sizeof(gpc_vertex), "vertex creation", gpc_vertex);
     for (v= 0; v < p->contour[c].num_vertices; v++)
-      fscanf(fp, "%lf %lf", &(p->contour[c].vertex[v].x),
+      fscanf_s(fp, "%lf %lf", &(p->contour[c].vertex[v].x),
                             &(p->contour[c].vertex[v].y));
   }
 }
@@ -1126,7 +1230,7 @@ void gpc_polygon_clip(gpc_op op, gpc_polygon *subj, gpc_polygon *clip,
   vertex_node   *vtx, *nv;
   h_state        horiz[2];
   int            in[2], exists[2], parity[2]= {LEFT, LEFT};
-  int            c, v, contributing, search, scanbeam= 0, sbt_entries= 0;
+  int            c, v, contributing, scanbeam= 0, sbt_entries= 0;
   int            vclass, bl, br, tl, tr;
   double        *sbt= NULL, xb, px, yb, yt, dy, ix, iy;
 
@@ -1610,54 +1714,21 @@ void gpc_polygon_clip(gpc_op op, gpc_polygon *subj, gpc_polygon *clip,
           default:
             break;
           } /* End of switch */
-	} /* End of contributing intersection conditional */
+        } /* End of contributing intersection conditional */
 
         /* Swap bundle sides in response to edge crossing */
         if (e0->bundle[ABOVE][CLIP])
-	  e1->bside[CLIP]= !e1->bside[CLIP];
+          e1->bside[CLIP]= !e1->bside[CLIP];
         if (e1->bundle[ABOVE][CLIP])
-	  e0->bside[CLIP]= !e0->bside[CLIP];
+          e0->bside[CLIP]= !e0->bside[CLIP];
         if (e0->bundle[ABOVE][SUBJ])
-	  e1->bside[SUBJ]= !e1->bside[SUBJ];
+          e1->bside[SUBJ]= !e1->bside[SUBJ];
         if (e1->bundle[ABOVE][SUBJ])
-	  e0->bside[SUBJ]= !e0->bside[SUBJ];
+          e0->bside[SUBJ]= !e0->bside[SUBJ];
 
-        /* Swap e0 and e1 bundles in the AET */
-        prev_edge= e0->prev;
-        next_edge= e1->next;
-        if (next_edge)
-          next_edge->prev= e0;
+        /* Swap the edge bundles in the aet */
+        swap_intersecting_edge_bundles(&aet, intersect);
 
-        if (e0->bstate[ABOVE] == BUNDLE_HEAD)
-        {
-          search= TRUE;
-          while (search)
-          {
-            prev_edge= prev_edge->prev;
-            if (prev_edge)
-            {
-              if (prev_edge->bstate[ABOVE] != BUNDLE_TAIL)
-                search= FALSE;
-            }
-            else
-              search= FALSE;
-          }
-        }
-        if (!prev_edge)
-        {
-          aet->prev= e1;
-          e1->next= aet;
-          aet= e0->next;
-        }
-        else
-        {
-          prev_edge->next->prev= e1;
-          e1->next= prev_edge->next;
-          prev_edge->next= e0->next;
-        }
-        e0->next->prev= prev_edge;
-        e1->next->prev= e1;
-        e0->next= next_edge;
       } /* End of IT loop*/
 
       /* Prepare for next scanbeam */
@@ -1691,7 +1762,7 @@ void gpc_polygon_clip(gpc_op op, gpc_polygon *subj, gpc_polygon *clip,
           edge->bundle[BELOW][CLIP]= edge->bundle[ABOVE][CLIP];
           edge->bundle[BELOW][SUBJ]= edge->bundle[ABOVE][SUBJ];
           edge->xb= edge->xt;
-	      }
+        }
         edge->outp[ABOVE]= NULL;
       }
     }
@@ -1787,7 +1858,7 @@ void gpc_tristrip_clip(gpc_op op, gpc_polygon *subj, gpc_polygon *clip,
   h_state        horiz[2];
   vertex_type    cft;
   int            in[2], exists[2], parity[2]= {LEFT, LEFT};
-  int            s, v, contributing, search, scanbeam= 0, sbt_entries= 0;
+  int            s, v, contributing, scanbeam= 0, sbt_entries= 0;
   int            vclass, bl, br, tl, tr;
   double        *sbt= NULL, xb, px, nx, yb, yt, dy, ix, iy;
 
@@ -2299,54 +2370,21 @@ void gpc_tristrip_clip(gpc_op op, gpc_polygon *subj, gpc_polygon *clip,
           default:
             break;
           } /* End of switch */
-	} /* End of contributing intersection conditional */
+        } /* End of contributing intersection conditional */
 
         /* Swap bundle sides in response to edge crossing */
         if (e0->bundle[ABOVE][CLIP])
-	  e1->bside[CLIP]= !e1->bside[CLIP];
+          e1->bside[CLIP]= !e1->bside[CLIP];
         if (e1->bundle[ABOVE][CLIP])
-	  e0->bside[CLIP]= !e0->bside[CLIP];
+          e0->bside[CLIP]= !e0->bside[CLIP];
         if (e0->bundle[ABOVE][SUBJ])
-	  e1->bside[SUBJ]= !e1->bside[SUBJ];
+          e1->bside[SUBJ]= !e1->bside[SUBJ];
         if (e1->bundle[ABOVE][SUBJ])
-	  e0->bside[SUBJ]= !e0->bside[SUBJ];
+          e0->bside[SUBJ]= !e0->bside[SUBJ];
 
-        /* Swap e0 and e1 bundles in the AET */
-        prev_edge= e0->prev;
-        next_edge= e1->next;
-        if (e1->next)
-          e1->next->prev= e0;
+        /* Swap the edge bundles in the aet */
+        swap_intersecting_edge_bundles(&aet, intersect);
 
-        if (e0->bstate[ABOVE] == BUNDLE_HEAD)
-        {
-          search= TRUE;
-          while (search)
-          {
-            prev_edge= prev_edge->prev;
-            if (prev_edge)
-            {
-              if (prev_edge->bundle[ABOVE][CLIP]
-               || prev_edge->bundle[ABOVE][SUBJ]
-               || (prev_edge->bstate[ABOVE] == BUNDLE_HEAD))
-                search= FALSE;
-            }
-            else
-              search= FALSE;
-          }
-        }
-        if (!prev_edge)
-        {
-           e1->next= aet;
-           aet= e0->next;
-        }
-        else
-        {
-          e1->next= prev_edge->next;
-          prev_edge->next= e0->next;
-        }
-        e0->next->prev= prev_edge;
-        e1->next->prev= e1;
-        e0->next= next_edge;
       } /* End of IT loop*/
 
       /* Prepare for next scanbeam */

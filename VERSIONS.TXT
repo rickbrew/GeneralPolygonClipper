@@ -2,6 +2,10 @@
 Generic Polygon Clipper (gpc) Revision History
 ==============================================
 
+v2.33   21st May 2014
+---------------------
+    Fixed possible crash when multiple edges cross at the same location.
+    Replaced fscanf calls with fscanf_s.
 
 v2.32   17th Dec 2004
 ---------------------
