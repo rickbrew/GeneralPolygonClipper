@@ -1,5 +1,5 @@
 # GeneralPolygonClipper
-General Polygon Clipper, aka GPC, version 2.32
+General Polygon Clipper, aka GPC, version 2.33
 
 See GPC-README.pdf for more official information about this library.
 
