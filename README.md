@@ -15,4 +15,4 @@ On Twitter, we were able to get ahold of Toby Howard who had this to say:
 
 https://twitter.com/tobyhoward/status/1473722153849786381
 
-I'm therefore placing this onto GitHub under the MIT License. If Alan Murta, Toby Howard, or the University of Manchester would like me to remove it, just ask and I'll respect your wishes.
+I'm therefore placing this onto GitHub under the MIT License. If Alan Murta, Toby Howard, or the University of Manchester would like me to remove it or make other changes, just ask and I'll respect your wishes. I can be contacted on Twitter at https://twitter.com/rickbrewPDN.
