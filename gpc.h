@@ -8,8 +8,8 @@ Project:   Generic Polygon Clipper
 
 File:      gpc.h
 Author:    Alan Murta (email: gpc@cs.man.ac.uk)
-Version:   2.32
-Date:      17th December 2004
+Version:   2.33
+Date:      21st May 2014
 
 Copyright: (C) Advanced Interfaces Group,
            University of Manchester.
@@ -46,7 +46,7 @@ Copyright: (C) Advanced Interfaces Group,
 
 #define GPC_EPSILON (DBL_EPSILON)
 
-#define GPC_VERSION "2.32"
+#define GPC_VERSION "2.33"
 
 
 /*
