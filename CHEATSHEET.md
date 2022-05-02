@@ -1,4 +1,4 @@
-# General Polygon Clipper Cheat Sheet
+# GeneralPolygonClipper Cheat Sheet
 
 ## Data types
 ```c
